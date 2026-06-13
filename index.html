@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ルーレット</title>
+<style>
+  :root{
+    --bg:#f8f5ef;
+    --panel:#ffffff;
+    --panel-light:#f1ece2;
+    --gold:#c1862c;
+    --gold-soft:#f6d68b;
+    --ink:#2d2438;
+    --muted:#85798f;
+    --line:#e4ddd2;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(ellipse at top, rgba(193,134,44,0.08), transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:-apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    display:flex;
+    justify-content:center;
+    padding:32px 16px 80px;
+  }
+  .app{ width:100%; max-width:440px; }
+
+  .title{
+    text-align:center;
+    font-family:Georgia, "Hiragino Mincho ProN", serif;
+    font-size:28px;
+    font-weight:700;
+    letter-spacing:.08em;
+    margin:0 0 4px;
+    color:var(--gold);
+    cursor:default;
+    -webkit-tap-highlight-color: transparent;
+    user-select:none;
+  }
+  .subtitle{
+    text-align:center;
+    color:var(--muted);
+    font-size:13px;
+    margin:0 0 28px;
+    letter-spacing:.05em;
+  }
+
+  .wheel-wrap{
+    position:relative;
+    width:300px;
+    height:300px;
+    margin:0 auto 18px;
+    cursor:pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wheel-wrap canvas{
+    width:100%;
+    height:100%;
+    display:block;
+    filter:drop-shadow(0 10px 24px rgba(45,36,56,0.18));
+  }
+  .pointer{
+    position:absolute;
+    top:-6px;
+    left:50%;
+    transform:translateX(-50%);
+    width:0; height:0;
+    border-left:14px solid transparent;
+    border-right:14px solid transparent;
+    border-top:24px solid var(--gold);
+    z-index:3;
+    filter:drop-shadow(0 2px 4px rgba(45,36,56,0.25));
+  }
+  .center-label{
+    position:absolute;
+    top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    width:84px; height:84px;
+    border-radius:50%;
+    background:var(--gold);
+    color:#ffffff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:.08em;
+    line-height:1.3;
+    z-index:2;
+    pointer-events:none;
+    box-shadow:0 0 0 4px var(--bg), 0 4px 10px rgba(45,36,56,0.25);
+    transition:transform .15s ease;
+  }
+  .wheel-wrap:active .center-label{ transform:translate(-50%,-50%) scale(0.94); }
+
+  .result-banner{
+    background:linear-gradient(135deg, var(--gold), var(--gold-soft));
+    color:#ffffff;
+    border-radius:14px;
+    padding:16px 18px;
+    margin:0 0 20px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    box-shadow:0 8px 20px rgba(193,134,44,0.25);
+    animation:pop .25s ease;
+  }
+  .result-banner.hidden{ display:none; }
+  .result-banner .label{ font-size:11px; letter-spacing:.12em; opacity:.75; margin-bottom:2px; }
+  .result-banner .name{ font-size:20px; font-weight:700; font-family:Georgia, serif; }
+  .result-banner .mult{ font-size:14px; font-weight:700; opacity:.9; }
+  .result-banner button{
+    background:rgba(255,255,255,0.25);
+    border:none;
+    color:#ffffff;
+    border-radius:8px;
+    width:30px; height:30px;
+    font-size:16px;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  @keyframes pop{ from{ transform:scale(0.92); opacity:0; } to{ transform:scale(1); opacity:1; } }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:18px;
+    margin-bottom:16px;
+    box-shadow:0 4px 16px rgba(45,36,56,0.05);
+  }
+  .panel h2{
+    font-size:13px;
+    letter-spacing:.14em;
+    color:var(--muted);
+    margin:0 0 14px;
+    font-weight:600;
+    text-transform:uppercase;
+  }
+
+  #addForm{
+    display:grid;
+    grid-template-columns:1fr 90px;
+    gap:8px;
+    margin-bottom:8px;
+  }
+  #addForm .full{ grid-column:1 / -1; }
+  .field{ display:flex; flex-direction:column; gap:4px; }
+  .field label{ font-size:11px; color:var(--muted); letter-spacing:.04em; }
+  input[type="text"], input[type="number"]{
+    background:var(--panel-light);
+    border:1px solid var(--line);
+    border-radius:8px;
+    color:var(--ink);
+    padding:9px 10px;
+    font-size:14px;
+    width:100%;
+    font-family:inherit;
+  }
+  input:focus{ outline:2px solid var(--gold); border-color:var(--gold); }
+  .add-btn{
+    grid-column:1 / -1;
+    margin-top:4px;
+    background:var(--gold);
+    color:#ffffff;
+    border:none;
+    border-radius:8px;
+    padding:11px;
+    font-size:14px;
+    font-weight:700;
+    letter-spacing:.05em;
+    cursor:pointer;
+  }
+  .add-btn:active{ transform:scale(0.99); }
+
+  .entry-list{ list-style:none; margin:14px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .entry-row{
+    display:grid;
+    grid-template-columns:28px 1fr 64px 28px;
+    gap:6px;
+    align-items:center;
+    background:var(--panel-light);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:8px 8px 8px 8px;
+  }
+  .entry-row .num-badge{
+    width:24px; height:24px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:700; color:#ffffff;
+    flex-shrink:0;
+  }
+  .entry-row .name-wrap{ display:flex; align-items:center; min-width:0; }
+  .entry-row input[type="text"]{ padding:7px 8px; font-size:13px; background:#ffffff; }
+  .entry-row input[type="number"]{ padding:7px 6px; font-size:13px; text-align:center; background:#ffffff; }
+  .entry-row .mini-label{ font-size:9px; color:var(--muted); display:block; text-align:center; margin-bottom:2px; letter-spacing:.04em;}
+  .del-btn{
+    background:transparent;
+    border:none;
+    color:var(--muted);
+    font-size:18px;
+    cursor:pointer;
+    line-height:1;
+    padding:0;
+  }
+  .del-btn:hover{ color:#c4585f; }
+
+  .empty-note{ color:var(--muted); font-size:13px; text-align:center; padding:10px 0; }
+
+  .hint{
+    font-size:12px;
+    color:var(--muted);
+    line-height:1.7;
+    border-top:1px solid var(--line);
+    margin-top:14px;
+    padding-top:12px;
+  }
+  .hint b{ color:var(--ink); }
+
+  .toast{
+    position:fixed;
+    bottom:24px;
+    left:50%;
+    transform:translateX(-50%) translateY(0);
+    background:var(--gold);
+    color:#ffffff;
+    padding:10px 18px;
+    border-radius:999px;
+    font-size:13px;
+    font-weight:700;
+    box-shadow:0 6px 18px rgba(45,36,56,0.25);
+    transition:opacity .3s ease, transform .3s ease;
+    z-index:50;
+    white-space:nowrap;
+  }
+  .toast.hidden{ opacity:0; transform:translateX(-50%) translateY(12px); pointer-events:none; }
+
+  .indicator-dot{
+    position:fixed;
+    top:10px;
+    right:10px;
+    min-width:22px;
+    height:22px;
+    padding:0 6px;
+    border-radius:11px;
+    background:var(--gold);
+    color:#ffffff;
+    font-size:12px;
+    font-weight:700;
+    font-family:Georgia, serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    opacity:0;
+    pointer-events:none;
+    z-index:60;
+    transition:opacity .5s ease;
+    box-shadow:0 2px 6px rgba(45,36,56,0.25);
+  }
+  .indicator-dot.show{
+    opacity:1;
+    transition:opacity .05s ease;
+  }
+
+  .mode-toggle{
+    display:block;
+    margin:0 auto 18px;
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--muted);
+    border-radius:999px;
+    padding:6px 16px;
+    font-size:11px;
+    letter-spacing:.08em;
+    cursor:pointer;
+  }
+  .mode-toggle:hover{ color:var(--ink); border-color:var(--gold); }
+
+  .config-area.hidden{ display:none; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1 class="title" id="title">ルーレット</h1>
+  <p class="subtitle">ホイールをタップして開始 / もう一度タップで停止</p>
+
+  <div class="wheel-wrap" id="wheelWrap">
+    <div class="pointer"></div>
+    <canvas id="wheel" width="600" height="600"></canvas>
+    <div class="center-label" id="centerLabel">タップで<br>スタート</div>
+  </div>
+
+  <div class="result-banner hidden" id="resultBanner">
+    <div>
+      <div class="label">RESULT</div>
+      <div class="name" id="resultName">-</div>
+      <div class="mult" id="resultMult">×1</div>
+    </div>
+    <button id="closeResult" aria-label="閉じる">×</button>
+  </div>
+
+  <button class="mode-toggle" id="modeToggle" type="button">設定パネルを隠す</button>
+
+  <div class="config-area" id="configArea">
+  <div class="panel">
+    <h2>項目を追加</h2>
+    <form id="addForm">
+      <div class="field full">
+        <label for="inName">名前</label>
+        <input type="text" id="inName" placeholder="例: 山田" required>
+      </div>
+      <div class="field">
+        <label for="inMult">倍率</label>
+        <input type="number" id="inMult" value="1" min="0.1" step="0.1">
+      </div>
+      <button type="submit" class="add-btn">追加する</button>
+    </form>
+
+    <ul class="entry-list" id="entryList"></ul>
+    <p class="empty-note" id="emptyNote" style="display:none;">まだ項目がありません。上のフォームから追加してください。</p>
+
+    <div class="hint">
+      <b>使い方</b><br>
+      ・名前と倍率(初期値×1)を入力してルーレットの項目を追加します(倍率が大きいほど枠は小さくなります)。<br>
+      ・タップで開始、結果表示ができます。
+    </div>
+  </div>
+  </div>
+</div>
+
+<div class="indicator-dot" id="indicatorDot"></div>
+<div class="toast hidden" id="toast"></div>
+
+<script>
+const canvas = document.getElementById('wheel');
+const ctx = canvas.getContext('2d');
+const SIZE = 600;
+const CX = SIZE/2, CY = SIZE/2, R = SIZE/2 - 6;
+const POINTER_ANGLE = 270;
+const COLORS = ['#d9714e','#3f9c8c','#e0b94f','#6b4a7a','#8aa86b','#c2613f','#4f7fa3','#a85a7e'];
+
+let entries = [
+  { id:1, name:'1', multiplier:1 },
+  { id:2, name:'2', multiplier:1 },
+  { id:3, name:'3', multiplier:1 },
+];
+let nextId = 4;
+
+let rotation = 0;
+let spinState = 'idle';
+let stopFrom = 0, stopTo = 0, stopStart = 0;
+const STOP_DURATION = 4200;
+const SPIN_SPEED = 0.55;
+let forcedWinnerId = null;
+
+const wheelWrap = document.getElementById('wheelWrap');
+const centerLabel = document.getElementById('centerLabel');
+const resultBanner = document.getElementById('resultBanner');
+const resultName = document.getElementById('resultName');
+const resultMult = document.getElementById('resultMult');
+const entryList = document.getElementById('entryList');
+const emptyNote = document.getElementById('emptyNote');
+const toast = document.getElementById('toast');
+const titleEl = document.getElementById('title');
+
+function computeSegments(){
+  if(entries.length === 0) return [];
+  const weights = entries.map(e => 1 / Math.max(e.multiplier, 0.01));
+  const total = weights.reduce((a,b) => a+b, 0);
+  let acc = 0;
+  return entries.map((e,i) => {
+    const angle = weights[i] / total * 360;
+    const seg = { entry:e, start:acc, end:acc+angle, color: COLORS[i % COLORS.length] };
+    acc += angle;
+    return seg;
+  });
+}
+
+function getSegmentAtLocalAngle(angle, segs){
+  angle = ((angle % 360) + 360) % 360;
+  for(let i=0;i<segs.length;i++){
+    const s = segs[i];
+    if(i === segs.length-1) { if(angle >= s.start - 1e-6) return s; }
+    if(angle >= s.start && angle < s.end) return s;
+  }
+  return segs[segs.length-1];
+}
+
+function drawWheel(rot){
+  ctx.clearRect(0,0,SIZE,SIZE);
+  const segs = computeSegments();
+
+  if(segs.length === 0){
+    ctx.beginPath();
+    ctx.arc(CX,CY,R,0,Math.PI*2);
+    ctx.fillStyle = '#f1ece2';
+    ctx.fill();
+    ctx.fillStyle = '#85798f';
+    ctx.font = '600 28px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('項目を追加してください', CX, CY);
+    return;
+  }
+
+  ctx.save();
+  ctx.translate(CX,CY);
+  ctx.rotate(rot * Math.PI/180);
+
+  segs.forEach(s => {
+    const a0 = s.start * Math.PI/180;
+    const a1 = s.end * Math.PI/180;
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.arc(0,0,R,a0,a1);
+    ctx.closePath();
+    ctx.fillStyle = s.color;
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#ffffff';
+    ctx.stroke();
+
+    const mid = (a0+a1)/2;
+    ctx.save();
+    ctx.rotate(mid);
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    const angleSpan = s.end - s.start;
+    const fontSize = angleSpan > 35 ? 24 : angleSpan > 18 ? 20 : 16;
+
+    ctx.font = `700 ${fontSize}px Georgia, serif`;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(45,36,56,0.55)';
+    ctx.strokeText(s.entry.name, R - 22, -fontSize*0.55);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(s.entry.name, R - 22, -fontSize*0.55);
+
+    ctx.font = `600 ${fontSize-4}px sans-serif`;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255,255,255,0.65)';
+    ctx.strokeText('×' + s.entry.multiplier, R - 22, fontSize*0.55);
+    ctx.fillStyle = '#2d2438';
+    ctx.fillText('×' + s.entry.multiplier, R - 22, fontSize*0.55);
+    ctx.restore();
+  });
+
+  ctx.restore();
+
+  ctx.beginPath();
+  ctx.arc(CX,CY,SIZE*0.07,0,Math.PI*2);
+  ctx.fillStyle = '#c1862c';
+  ctx.fill();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#ffffff';
+  ctx.stroke();
+}
+
+function easeOutQuint(t){ return 1 - Math.pow(1-t, 5); }
+
+function animate(ts){
+  if(spinState === 'spinning'){
+    if(!animate.last) animate.last = ts;
+    const dt = ts - animate.last;
+    animate.last = ts;
+    rotation = (rotation + SPIN_SPEED * dt) % 360;
+  } else if(spinState === 'stopping'){
+    animate.last = ts;
+    if(!stopStart) stopStart = ts;
+    const t = Math.min((ts - stopStart) / STOP_DURATION, 1);
+    rotation = stopFrom + (stopTo - stopFrom) * easeOutQuint(t);
+    if(t >= 1){
+      finishSpin();
+    }
+  } else {
+    animate.last = ts;
+  }
+  drawWheel(rotation);
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);
+
+function startSpin(){
+  if(entries.length === 0) return;
+  spinState = 'spinning';
+  centerLabel.innerHTML = 'タップで<br>ストップ';
+  resultBanner.classList.add('hidden');
+}
+
+function stopSpin(){
+  const segs = computeSegments();
+  let targetLocalAngle;
+
+  if(forcedWinnerId != null){
+    const idx = entries.findIndex(e => e.id === forcedWinnerId);
+    if(idx >= 0){
+      const seg = segs[idx];
+      const margin = (seg.end - seg.start) * 0.12;
+      targetLocalAngle = seg.start + margin + Math.random() * ((seg.end - seg.start) - margin*2);
+    }
+  }
+  if(targetLocalAngle === undefined){
+    targetLocalAngle = Math.random() * 360;
+  }
+
+  const offset = ((POINTER_ANGLE - targetLocalAngle) % 360 + 360) % 360;
+  const extraTurns = 4;
+  stopFrom = rotation;
+  stopTo = extraTurns * 360 + offset;
+  stopStart = 0;
+  spinState = 'stopping';
+  centerLabel.innerHTML = '抽選中…';
+}
+
+function finishSpin(){
+  rotation = ((stopTo % 360) + 360) % 360;
+  const segs = computeSegments();
+  const localAngle = ((POINTER_ANGLE - rotation) % 360 + 360) % 360;
+  const winner = getSegmentAtLocalAngle(localAngle, segs);
+
+  resultName.textContent = winner.entry.name;
+  resultMult.textContent = '×' + winner.entry.multiplier;
+  resultBanner.classList.remove('hidden');
+
+  spinState = 'idle';
+  forcedWinnerId = null;
+  centerLabel.innerHTML = 'タップで<br>スタート';
+}
+
+wheelWrap.addEventListener('click', () => {
+  if(spinState === 'idle') startSpin();
+  else if(spinState === 'spinning') stopSpin();
+});
+
+document.getElementById('closeResult').addEventListener('click', () => {
+  resultBanner.classList.add('hidden');
+});
+
+let titleTapCount = 0;
+let titleTapTimer = null;
+titleEl.addEventListener('click', () => {
+  titleTapCount++;
+  clearTimeout(titleTapTimer);
+  titleTapTimer = setTimeout(() => { titleTapCount = 0; }, 1000);
+
+  if(entries.length === 0) return;
+  const n = entries.length;
+  const idx = titleTapCount % (n + 1);
+  if(idx === 0){
+    forcedWinnerId = null;
+  } else {
+    forcedWinnerId = entries[idx - 1].id;
+  }
+  showIndicator(idx);
+});
+
+function showIndicator(number){
+  const dot = document.getElementById('indicatorDot');
+  dot.textContent = number;
+  dot.classList.add('show');
+  setTimeout(() => dot.classList.remove('show'), 350);
+}
+
+const modeToggle = document.getElementById('modeToggle');
+const configArea = document.getElementById('configArea');
+modeToggle.addEventListener('click', () => {
+  const hidden = configArea.classList.toggle('hidden');
+  modeToggle.textContent = hidden ? '設定パネルを表示' : '設定パネルを隠す';
+});
+
+const addForm = document.getElementById('addForm');
+const inName = document.getElementById('inName');
+const inMult = document.getElementById('inMult');
+
+function renderEntries(){
+  entryList.innerHTML = '';
+  emptyNote.style.display = entries.length === 0 ? 'block' : 'none';
+
+  entries.forEach((entry, i) => {
+    const li = document.createElement('li');
+    li.className = 'entry-row';
+
+    const numBadge = document.createElement('span');
+    numBadge.className = 'num-badge';
+    numBadge.style.background = COLORS[i % COLORS.length];
+    numBadge.textContent = i + 1;
+
+    const nameWrap = document.createElement('div');
+    nameWrap.className = 'name-wrap';
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.value = entry.name;
+    nameInput.addEventListener('input', () => { entry.name = nameInput.value; });
+    nameWrap.appendChild(nameInput);
+
+    const multField = document.createElement('div');
+    const multLabel = document.createElement('span');
+    multLabel.className = 'mini-label';
+    multLabel.textContent = '倍率';
+    const multInput = document.createElement('input');
+    multInput.type = 'number';
+    multInput.min = '0.1';
+    multInput.step = '0.1';
+    multInput.value = entry.multiplier;
+    multInput.addEventListener('input', () => {
+      const v = parseFloat(multInput.value);
+      entry.multiplier = (isNaN(v) || v <= 0) ? entry.multiplier : v;
+    });
+    multField.appendChild(multLabel);
+    multField.appendChild(multInput);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'del-btn';
+    delBtn.innerHTML = '&times;';
+    delBtn.setAttribute('aria-label', '削除');
+    delBtn.addEventListener('click', () => {
+      entries = entries.filter(e => e.id !== entry.id);
+      if(forcedWinnerId === entry.id) forcedWinnerId = null;
+      renderEntries();
+    });
+
+    li.appendChild(numBadge);
+    li.appendChild(nameWrap);
+    li.appendChild(multField);
+    li.appendChild(delBtn);
+    entryList.appendChild(li);
+  });
+}
+
+addForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const name = inName.value.trim();
+  if(!name) return;
+  const mult = parseFloat(inMult.value);
+
+  entries.push({
+    id: nextId++,
+    name,
+    multiplier: (isNaN(mult) || mult <= 0) ? 1 : mult
+  });
+
+  inName.value = '';
+  inMult.value = '1';
+  renderEntries();
+  inName.focus();
+});
+
+renderEntries();
+</script>
+</body>
+</html>
